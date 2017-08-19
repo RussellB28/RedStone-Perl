@@ -1,0 +1,64 @@
+
+########  ######## ########   ######  ########  #######  ##    ## ######## 
+##     ## ##       ##     ## ##    ##    ##    ##     ## ###   ## ##       
+##     ## ##       ##     ## ##          ##    ##     ## ####  ## ##       
+########  ######   ##     ##  ######     ##    ##     ## ## ## ## ######   
+##   ##   ##       ##     ##       ##    ##    ##     ## ##  #### ##       
+##    ##  ##       ##     ## ##    ##    ##    ##     ## ##   ### ##       
+##     ## ######## ########   ######     ##     #######  ##    ## ######## 
+                                                               
+
+
+      #     # ####### ######   #####  ### ####### #     #       #   
+      #     # #       #     # #     #  #  #     # ##    #      ##   
+      #     # #       #     # #        #  #     # # #   #     # #   
+      #     # #####   ######   #####   #  #     # #  #  #       #   
+       #   #  #       #   #         #  #  #     # #   # #       #   
+        # #   #       #    #  #     #  #  #     # #    ##       #   
+         #    ####### #     #  #####  ### ####### #     #     ##### 
+
+------------------------------------------------------------------------------
+
+The simple and easy to use IRC bot is here! RedStone Development Group brings
+you Version 1 of RedStone!
+
+Here is a list of features/updates (not extensive) included in this release:
+
+* IPLookup: Lookup information on an IP address
+* API: allow hooking to any and every possible command via rchook.
+* Pisg: Added a module to automate Pisg and log with a recognized format.
+* API::Socket - Exposing sockets to the API allowing custom sockets/parsers in modules.
+* BotStats: Changed command to match module name and added support for API::Socket.
+* Sandboxing Eval and Modules
+* QDB: Majority rewrite. New features. See module for details.
+* OnJoin: Added a configurable HelloChan replacement.
+* Replay: Added a module to replay channel history.
+* Twitter: A twitter feed announcer.
+* Factoids: Added INFO command.
+* ABStats: Additonal bot statistics.
+* Pisg 1.01: Recheck certain things when rehashed.
+* NickPrefix: Extends fantasy support to allow for command execution when the bot is addressed.
+* DNS: A module for resolution of DNS hostnames.
+* Seen: A seen module, adds the SEEN command.
+* Added IPv6 SSL support.
+* Made bind optional in server blocks.
+* Spotify: New module that adds spotify searching and spotify uri information.
+* LastFM: New module that apps last.fm now playing and auto-annoucements of your now playing.
+* Autojoin: Added module to manage autojoin from IRC. This will later replace the configuration autojoin.
+* Sockets: We now use IO::Async which provides us with various loop methods. This adds the 'loop' option to the configration.
+* Auto::HTTP: Exposed Net::Async::HTTP to Auto. This allows for modules to make non-blocking http requests.
+
+Bug fixes:
+
+* var/ permissions error on first run.
+* If -c was passed at runtime, also pass it upon restart.
+* Rehash: fixed a crash bug when trying to load a module in config that's not already loaded.
+* match_user/has_priv: Fixed a bug where only one block can be matched even if a user fits into multiple. This could cause you not to get some privileges.
+* module loading: Fixed a bug where mod_load would say a module loaded fine when it really didn't.
+* Fixed a bug in API::Socket that'd cause the function to not return upon an error.
+* Fixed a bug where Auto wouldn't exit if a non-IRC socket was still running.
+
+We thank you for choosing RedStone.
+
+RedStone Development Group's goal is to create an efficient, stable and highly customizable 
+IRC bot in Perl. To offer an alternative to other platforms.

@@ -1,0 +1,634 @@
+#!/usr/bin/env perl
+
+# bin/auto - Main file.
+Copyright (C) 2017 RedStone Development Group.
+# This program is free software; rights to this code are stated in doc/LICENSE.
+package Auto;
+#use 5.010_000;
+use 5.010;
+use strict;
+use warnings;
+no feature qw(state);
+use POSIX;
+use English qw(-no_match_vars);
+use Sys::Hostname;
+use IO::Async;
+use IO::Async::Stream;
+use IO::Socket;
+use IO::Socket::IP -register;
+use Getopt::Long;
+use DBI;
+use Class::Unload;
+use FindBin qw($Bin);
+our $Bin = $Bin; ## no critic qw(NamingConventions::Capitalization Variables::ProhibitPackageVars)
+our (%bin, $UPREFIX);
+BEGIN {
+    $bin{cwd} = getcwd;
+    if (!-e "$Bin/../build/syswide") {
+        # Must be a custom PREFIX install.
+        $bin{etc} = "$bin{cwd}/etc";
+        $bin{var} = "$bin{cwd}/var";
+        if (!-e "$Bin/lib/Lib/Auto.pm") {
+            # Must be a system wide install.
+            $bin{lib} = "$Bin/../lib/autobot/3.0.0";    
+            $bin{bld} = "$bin{lib}/build";
+            $bin{lng} = "$bin{lib}/lang";
+            $bin{mod} = "$bin{lib}/modules";
+        }
+        else {
+            # Or not.
+            $bin{lib} = "$Bin/../lib";
+            $bin{bld} = "$Bin/../build";
+            $bin{lng} = "$Bin/../lang";
+            $bin{mod} = "$Bin/../modules";
+        }
+        $UPREFIX = 1;
+    }
+    else {
+        # Must be a standard install.
+        $bin{etc} = "$Bin/../etc";
+        $bin{var} = "$Bin/../var";
+        $bin{lib} = "$Bin/../lib";
+        $bin{bld} = "$Bin/../build";
+        $bin{lng} = "$Bin/../lang";
+        $bin{mod} = "$Bin/../modules";
+        $UPREFIX = 0;
+    }
+
+    unshift @INC, $bin{lib};
+
+    if (-d "$Bin/../.git") {
+        open my $gitfh, '<', "$Bin/../.git/refs/heads/master";
+        our $VERGITREV = substr readline $gitfh, 0, 7;
+        close $gitfh;
+    }
+
+    # Set version information.
+    use constant { ## no critic qw(ValuesAndExpressions::ProhibitConstantPragma)
+        NAME   => 'Auto IRC Bot',
+        VER    => 3,
+        SVER   => 0,
+        REV    => 0,
+        RSTAGE => 'd',
+    };
+}
+use Auto::HTTP;
+use Auto::Logger;
+our $logger = Auto::Logger->new;
+$logger->on(FATAL => sub { print "ERROR: @_[1..$#_]"; exit; }, 'core.fatal');
+use Lib::Auto;
+use API::Std qw(conf_get err);
+use API::Log qw(alog dbug);
+use API::Socket qw(add_socket del_socket send_socket);
+use Parser::Config;
+use Parser::Lang;
+use Proto::IRC;
+use State::IRC;
+use Core::IRC;
+use Core::IRC::Users;
+use Core::Cmd;
+
+our $VERSION = 3.000000;
+local $PROGRAM_NAME = 'auto';
+
+# Binmode to avoid warnings;
+binmode(STDOUT, ':encoding(UTF-8)');
+
+# Global variables.
+our ($DEBUG, $NUC, $configfile, $ENFEAT, $CONF, %SETTINGS, $LOCALE, $DB, $loop, %PRIVILEGES, $STARTTIME, %SOCKET, $APID, $http);
+
+sub boot {
+    # Check buildfiles
+    check_buildfiles();
+    
+    # Register and setup signal handlers and events
+    setup_sighandlers();
+    
+    # Get arguments.
+    my ($opt_help, $opt_version, $USECONFIG);
+    GetOptions(
+        'nuc'        => \$NUC,
+        'config|c=s' => \$configfile,
+        'h|help'     => \$opt_help,
+        'debug|d'    => \$DEBUG,
+        'version|v'  => \$opt_version,
+    );
+    if ($opt_help) { print_help(); }
+    if ($opt_version) { print_version(); }
+    undef $opt_help;
+    undef $opt_version;
+    
+    # Print startup message
+    print_startup();
+    
+    our ($APID, %TIMERS);
+
+    # Check for updates.
+    Lib::Auto::checkver();
+
+    # Include SSL if Auto was built for it.
+    if ($ENFEAT =~ /ssl/) { require IO::Socket::SSL }
+    
+    # Setup configuration.
+    setup_config();
+    
+    # Checkin.
+    Lib::Auto::checkin();
+    
+    # Setup translations.
+    setup_trans();
+    
+    # Expire old logs.
+    API::Log::expire_logs();
+    
+    # Setup database.
+    setup_database();
+    
+    # Setup loop.
+    setup_loop();
+    
+    # Ratelimit timer.
+    Core::IRC::clear_usercmd_timer();
+    
+    # Parse privs.
+    parse_privs();
+    
+    # Print success message.
+    print_success();
+    
+    # Daemonize.
+    daemonize();
+    
+    # Setup Auto::HTTP.
+    $http = Auto::HTTP->new;
+
+    # Prepare for sockets.
+    prepare();
+    
+    # Load modules
+    load_modules();
+    
+    # Setup sockets.
+    setup_sockets();
+    
+    # Setup core commands and aliases.
+    setup_cmds();
+    
+    # Infinite loop.
+    $loop->loop_forever;
+}
+
+boot();
+
+sub check_buildfiles {
+    # Check for build files.
+    if (!-e "$bin{bld}/os" or !-e "$bin{bld}/perl" or !-e "$bin{bld}/time" or !-e "$bin{bld}/ver") {
+        $logger->fire(FATAL => 'Missing build file(s). Please build Auto before running it.');
+    }
+
+    # Check build OS.
+    open my $BFOS, '<', "$bin{bld}/os" or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    my @BFOS = <$BFOS>;
+    close $BFOS or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    if ($BFOS[0] ne $OSNAME."\n") {
+        $logger->fire(FATAL => 'Cannot start: Broken build.');
+    }
+    undef @BFOS;
+
+    # Check build features.
+    open my $BFFEAT, '<', "$bin{bld}/feat" or $logger->fire(FATAL => 'Cannot start: Broken build');
+    my @BFFEAT = <$BFFEAT>;
+    close $BFFEAT or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    $ENFEAT = substr $BFFEAT[0], 0, length($BFFEAT[0]) - 1;
+    undef @BFFEAT;
+
+    # Check build Perl version.
+    open my $BFPERL, '<', "$bin{bld}/perl" or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    my @BFPERL = <$BFPERL>;
+    close $BFPERL or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    if ($BFPERL[0] ne $]."\n") {
+        $logger->fire(FATAL => 'Cannot start: Broken build.');
+    }
+    undef @BFPERL;
+
+    # Check build Auto version.
+    open my $BFVER, '<', "$bin{bld}/ver" or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    my @BFVER = <$BFVER>;
+    close $BFVER or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    if ($BFVER[0] ne VER.q{.}.SVER.q{.}.REV.RSTAGE."\n") {
+        $logger->fire(FATAL => 'Cannot start: Broken build.');
+    }
+    undef @BFVER;
+
+    # Check build path setup.
+    our $SYSWIDE;
+    open my $BFPATH, '<', "$bin{bld}/syswide" or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    my @BFPATH = <$BFPATH>;
+    close $BFPATH or $logger->fire(FATAL => 'Cannot start: Broken build.');
+    if ($BFPATH[0] eq "1\n") { $SYSWIDE = 1 }
+    else { $SYSWIDE = 0 }
+}
+
+# Setup signal handlers and events.
+sub setup_sighandlers {
+    local $SIG{TERM}       = \&Lib::Auto::signal_term;
+    local $SIG{INT}        = \&Lib::Auto::signal_int;
+    local $SIG{HUP}        = \&Lib::Auto::signal_hup;
+    local $SIG{'__WARN__'} = \&Lib::Auto::signal_perlwarn;
+    local $SIG{'__DIE__'}  = \&Lib::Auto::signal_perldie;
+    API::Std::event_add('on_sigterm');
+    API::Std::event_add('on_sigint');
+    API::Std::event_add('on_sighup');
+}
+
+# If we were passed -h, print help.
+sub print_help {
+    print <<"HELP";
+
+Usage: $PROGRAM_NAME [options]
+    --help, -h     Prints this help.
+    --version, -v  Prints the version of this Auto.
+    --debug, -d    Runs Auto in debug mode. Debug mode will print out debug
+                   messages, including IRC raw data, to screen. This will also
+                   stop Auto from forking into the background.
+
+    --config=FILENAME, -c  Uses etc/FILENAME for the configuration file.
+
+HELP
+    exit 1;
+}
+
+# If we were passed -v, print version.
+sub print_version {
+    print q{};
+    print NAME.' version '.VER.', subversion '.SVER.', revision '.REV.' ('.VER.q{.}.SVER.q{.}.REV.RSTAGE.').';
+    print <<'VERINFO';
+
+Copyright (C) 2017, RedStone Development Group, All rights reserved.
+
+RedStone is released under the licensing terms of the GNU General Public License,
+which may be found in LICENSE.
+
+For documentation, you might refer to README, and doc/*. Documentation for 
+modules is stored in Man Page and HTML form in autodoc/.
+
+Please view the README for further information
+
+VERINFO
+    exit 1;
+}
+
+sub print_startup {
+    print <<'EOF';
+    ########  ######## ########   ######  ########  #######  ##    ## ######## 
+    ##     ## ##       ##     ## ##    ##    ##    ##     ## ###   ## ##       
+    ##     ## ##       ##     ## ##          ##    ##     ## ####  ## ##       
+    ########  ######   ##     ##  ######     ##    ##     ## ## ## ## ######   
+    ##   ##   ##       ##     ##       ##    ##    ##     ## ##  #### ##       
+    ##    ##  ##       ##     ## ##    ##    ##    ##     ## ##   ### ##       
+    ##     ## ######## ########   ######     ##     #######  ##    ## ######## 
+EOF
+    print '* '.NAME.' (version '.VER.q{.}.SVER.q{.}.REV.RSTAGE.') is starting up...';
+}
+
+# Setup and check configuration file.
+sub setup_config {
+    # Parse configuration file.
+    $configfile ||= "$bin{etc}/auto.conf";
+    print "* Parsing configuration file $configfile...";
+    $CONF = Parser::Config->new($configfile) or err(1, 'Failed to parse configuration file!', 1);
+    %SETTINGS = $CONF->parse or err(1, 'Failed to parse configuration file!', 1);
+    print ' Success';
+
+    if (conf_get('die')) {
+        if ((conf_get('die'))[0][0] == 1) {
+            print '!!! You didn\'t read the whole config.';
+            print '!!! Insert new user then try again.';
+            exit;
+        }
+    }
+
+    # Check for required configuration values.
+    my @REQCVALS = qw(locale expire_logs server fantasy_pf ratelimit database:format bantype loop);
+    foreach my $REQCVAL (@REQCVALS) {
+        if (!conf_get($REQCVAL)) {
+            my $err = 2;
+            if ($REQCVAL eq 'expire_logs') {
+                $err = 1;
+            }
+            err($err, "Missing required configuration value: $REQCVAL", 1);
+        }
+    }
+    undef @REQCVALS;
+}
+
+# Parse translations and setup locale.
+sub setup_trans {
+    # Parse translations.
+    print '* Parsing translation files...';
+    $LOCALE = (conf_get('locale'))[0][0];
+    my @lang = split m/[_]/, $LOCALE;
+    Parser::Lang::parse($lang[0]) or err(2, 'Failed to parse translation files!', 1);
+    undef @lang;
+    print ' Success';
+}
+
+# Setup database.
+sub setup_database {
+    given (lc((conf_get('database:format'))[0][0])) {
+        when ('sqlite') {
+            # SQLite.
+            if ($ENFEAT !~ /sqlite/) { err(2, 'Auto not built with SQLite support. Aborting.', 1) }
+            if (!conf_get('database:filename')) { err(2, 'Missing required configuration value database:filename. Aborting.', 1) }
+
+            # Import DBD::SQLite.
+            require DBD::SQLite;
+
+            if (!-e "$bin{etc}/".(conf_get('database:filename'))[0][0]) {
+                # Create <database:filename> if it's missing.
+                open my $dbfh, '>', "$bin{etc}/".(conf_get('database:filename'))[0][0];
+                close $dbfh;
+                chmod 0755, "$bin{etc}/".(conf_get('database:filename'))[0][0];
+            }
+            # Connect to database.
+            $DB = DBI->connect("dbi:SQLite:dbname=$bin{etc}/".(conf_get('database:filename'))[0][0]) or err(2, 'Failed to connect to database!', 1);
+        }
+        when ('mysql') {
+            # MySQL.
+            if ($ENFEAT !~ /mysql/) { err(2, 'Auto not built with MySQL support. Aborting.', 1) }
+            my @reqcval = qw(database:host database:name database:username database:password);
+            foreach (@reqcval) { if (!conf_get($_)) { err(2, "Missing required configuration value $_. Aborting.", 1) } }
+            undef @reqcval;
+
+            # Import DBD::mysql.
+            require DBD::mysql;
+
+            # Connect to database.
+            if (conf_get('database:port')) {
+                # If we were given a port, connect with it.
+                $DB = DBI->connect('DBI:mysql:database='.(conf_get('database:name'))[0][0].';host='.(conf_get('database:host'))[0][0].';port='.(conf_get('database:port'))[0][0],
+                    (conf_get('database:username'))[0][0], (conf_get('database:password'))[0][0]) or err(2, 'Failed to connect to database!', 1);;
+            }
+            else {
+                # If not, connect without specifying a port.
+                $DB = DBI->connect('DBI:mysql:database='.(conf_get('database:name'))[0][0].';host='.(conf_get('database:host'))[0][0],
+                    (conf_get('database:username'))[0][0], (conf_get('database:password'))[0][0]) or err(2, 'Failed to connect to database!', 1);;
+            }
+        }
+        when ('pgsql') {
+            # PostgreSQL.
+            if ($ENFEAT !~ /pgsql/) { err(2, 'Auto not built with PostgreSQL support. Aborting.', 1) }
+            my @reqcval = qw(database:name database:host database:username database:password);
+            foreach (@reqcval) { if (!conf_get($_)) { err(2, "Missing required configuration value $_. Aborting.", 1) } }
+            undef @reqcval;
+
+            # Import DBD::Pg.
+            require DBD::Pg;
+
+            # Connect to database.
+            if (conf_get('database:port')) {
+                # If a specific port was given, use it.
+                $DB = DBI->connect('dbi:Pg:db='.(conf_get('database:name'))[0][0].';host='.(conf_get('database:host'))[0][0].';port='.(conf_get('database:port'))[0][0],
+                    (conf_get('database:username'))[0][0], (conf_get('database:password'))[0][0]) or err(2, 'Failed to connect to database!', 1);
+            }
+            else {
+                # We were not given a port, connect using PGPORT (usually 5432)
+                $DB = DBI->connect('dbi:Pg:db='.(conf_get('database:name'))[0][0].';host='.(conf_get('database:host'))[0][0],
+                    (conf_get('database:username'))[0][0], (conf_get('database:password'))[0][0]) or err(2, 'Failed to connect to database!', 1);
+            }
+        }
+        # Unknown database format.
+        default { err(2, 'Unknown database format \''.lc((conf_get('database:format'))[0][0]).'\'. Aborting.', 1) }
+    }
+}
+
+# Setup loop.
+sub setup_loop {
+    if ($loop = (conf_get('loop'))[0][0]) {
+        $loop = eval {
+            require 'IO/Async/Loop/'.ucfirst($loop).'.pm';
+            ('IO::Async::Loop::'.ucfirst($loop))->new;
+        };
+        $logger->log(FATAL => 'Specified \'loop\' option does not exist or is not installed on this system') if !$loop;
+    }
+    else {
+        $logger->log(FATAL => 'No \'loop\' option specified. This is required.');
+    }
+}
+
+# Parse privileges.
+sub parse_privs {
+    # If there are any privsets.
+    if (conf_get('privset')) {
+        # Get them.
+        my %tcprivs = conf_get('privset');
+
+        foreach my $tckpriv (keys %tcprivs) {
+            # For each privset, get the inner values.
+            my %mcprivs = conf_get("privset:$tckpriv");
+
+            # Iterate through them.
+            foreach my $mckpriv (keys %mcprivs) {
+                # Switch statement for the values.
+                given ($mckpriv) {
+                    # If it's 'priv', save it as a privilege.
+                    when ('priv') {
+                        if (defined $PRIVILEGES{$tckpriv}) {
+                            # If this privset exists, push to it.
+                            for (0..@{($mcprivs{$mckpriv})[0]}) {
+                                push @{ $PRIVILEGES{$tckpriv} }, ($mcprivs{$mckpriv})[0][$_];
+                            }
+                        }
+                        else {
+                            # Otherwise, create it.
+                            @{ $PRIVILEGES{$tckpriv} } = (($mcprivs{$mckpriv})[0][0]);
+                            if (scalar @{($mcprivs{$mckpriv})[0]} > 1) {
+                                for (1..@{($mcprivs{$mckpriv})[0]}) {
+                                    push @{ $PRIVILEGES{$tckpriv} }, ($mcprivs{$mckpriv})[0][$_];
+                                }
+                            }
+                        }
+                    }
+                    # If it's 'inherit', inherit the privileges of another privset.
+                    when ('inherit') {
+                        # If the privset we're inheriting exists, continue.
+                        if (defined $PRIVILEGES{($mcprivs{$mckpriv})[0][0]}) {
+                            # Iterate through each privilege.
+                            foreach (@{ $PRIVILEGES{($mcprivs{$mckpriv})[0][0]} }) {
+                                # And save them to the privset inheriting them
+                                if (defined $PRIVILEGES{$tckpriv}) {
+                                    # If this privset exists, push to it.
+                                    push @{ $PRIVILEGES{$tckpriv} }, $_;
+                                }
+                                else {
+                                    # Otherwise, create it.
+                                    @{ $PRIVILEGES{$tckpriv} } = ($_);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+sub print_success {
+    # Successful startup.
+    $STARTTIME = time;
+    print '* Auto successfully started at '.POSIX::strftime('%Y-%m-%d %I:%M:%S %p', localtime).q{.};
+    alog 'Auto successfully started.';
+}
+
+# Daemonize.
+sub daemonize {
+    # If we're on Windows, disable forking.
+    if ($OSNAME =~ /win/i) {
+        if (!$DEBUG) {
+            print '!!! Forking unavailable (OS is Microsoft Windows), continuing in debug mode.';
+            $DEBUG = 1;
+        }
+    }
+
+    # Fork into the background if not in debug mode.
+    if (!$DEBUG) {
+        print '*** Becoming a daemon...';
+        open STDIN, '<', '/dev/null' or err(2, "Can't read /dev/null: $ERRNO", 1);
+        open STDOUT, '>>', '/dev/null' or err(2, "Can't write to /dev/null: $ERRNO", 1);
+        open STDERR, '>>', '/dev/null' or err(2, "Can't write to /dev/null: $ERRNO", 1);
+        $APID = fork;
+        if ($APID != 0) {
+            alog '* Successfully forked into the background. Process ID: '.$APID;
+            # Figure out where to throw redstone.pid.
+            my $pidfile;
+            if ($UPREFIX) { $pidfile = "$bin{cwd}/redstone.pid" }
+            else { $pidfile = "$Bin/redstone.pid" }
+            open my $FPID, '>', $pidfile or exit;
+            print {$FPID} "$APID\n" or exit;
+            close $FPID or exit;
+            exit;
+        }
+        POSIX::setsid() or err(2, "Can't start a new session: $ERRNO", 1);
+    }
+    else {
+        $APID = $PID;
+    }
+}
+
+sub prepare {
+    # Events.
+    API::Std::event_add('on_preconnect');
+    # CAP.
+    my %tcsvrs = conf_get('server');
+    foreach my $svr (keys %tcsvrs) {
+        $Proto::IRC::cap{$svr} = 'multi-prefix';
+    }
+    undef %tcsvrs;
+}
+
+# Load modules from configuration.
+sub load_modules {
+    # Load modules.
+    if (conf_get('module')) {
+        alog '* Loading modules...';
+        dbug '* Loading modules...';
+        foreach (@{ (conf_get('module'))[0] }) {
+            my $module = mod_load($_);
+            if ($module) {
+                alog "* Module $_ failed to load: $module";
+                dbug "* Module $_ failed to load: $module";
+            }
+            else {
+                alog "* Module $_ loaded.";
+                dbug "* Module $_ loaded.";
+            }
+        }
+    }
+}
+
+# Create IRC sockets from configuration.
+sub setup_sockets {
+    alog '* Connecting to servers...';
+    dbug '* Connecting to servers...';
+    # Get servers from config.
+    my %cservers = conf_get('server');
+    # Iterate through each configured server.
+    foreach my $cskey (keys %cservers) {
+        Lib::Auto::ircsock(\%{$cservers{$cskey}}, $cskey);
+    }
+    
+    # Success!
+    if (keys %SOCKET) {
+        alog '** Success: Connected to server(s).';
+        dbug '** Success: Connected to server(s).';
+    }
+    else {
+        err(2, 'No IRC connections -- Exiting program.', 1);
+    }
+}
+
+# Create core commands and aliases.
+sub setup_cmds {
+    # Create core commands.
+    API::Std::cmd_add('MODLOAD', 2, 'cfunc.modules', \%Core::Cmd::HELP_MODLOAD, \&Core::Cmd::cmd_modload);
+    API::Std::cmd_add('MODUNLOAD', 2, 'cfunc.modules', \%Core::Cmd::HELP_MODUNLOAD, \&Core::Cmd::cmd_modunload);
+    API::Std::cmd_add('MODRELOAD', 2, 'cfunc.modules', \%Core::Cmd::HELP_MODRELOAD, \&Core::Cmd::cmd_modreload);
+    API::Std::cmd_add('MODLIST', 2, 'cfunc.modules', \%Core::Cmd::HELP_MODLIST, \&Core::Cmd::cmd_modlist);
+    API::Std::cmd_add('SHUTDOWN', 2, 'cmd.shutdown', \%Core::Cmd::HELP_SHUTDOWN, \&Core::Cmd::cmd_shutdown);
+    API::Std::cmd_add('RESTART', 2, 'cmd.restart', \%Core::Cmd::HELP_RESTART, \&Core::Cmd::cmd_restart);
+    API::Std::cmd_add('REHASH', 2, 'cmd.rehash', \%Core::Cmd::HELP_REHASH, \&Core::Cmd::cmd_rehash);
+    API::Std::cmd_add('HELP', 2, 0, \%Core::Cmd::HELP_HELP, \&Core::Cmd::cmd_help);
+    # Aliases, if any.
+    if (conf_get('aliases:alias')) {
+        my $aliases = (conf_get('aliases:alias'))[0];
+        foreach (@{$aliases}) {
+            if ($_ =~ m/\s/xsm) {
+                my @data = split /\s/xsm, $_;
+                API::Std::cmd_alias($data[0], join ' ', @data[1..$#data]);
+            }
+        }
+    }
+}
+
+###############
+# Subroutines #
+###############
+
+# Send data to socket.
+sub socksnd {
+    my ($svr, $data) = @_;
+
+    if (defined $SOCKET{$svr}) {
+        send_socket($svr, $data);
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+# Verify a socket is a configured IRC socket.
+sub is_ircsock {
+    my ($id) = @_;
+    return 1 if conf_get("server:$id");
+    return 0;
+}
+
+# Load a module.
+sub mod_load {
+    my ($module) = @_;
+
+    my $mod = (-e "$bin{mod}/$module.pm") ? "$bin{mod}/$module.pm" :
+              (-e "$bin{mod}/$module/main.pm") ? "$bin{mod}/$module/main.pm" : undef;
+    return 'Module not found' unless defined $mod;
+
+    return eval {
+        $SIG{__WARN__} = $SIG{__DIE__} = sub {};
+        my $result = do $mod;
+        return $@ if $@; # Parse/Syntax error.
+        return 'Module initialization failed. Check logs for more information' if !$result; # mod_init() failed.
+        undef
+    }
+}
+
+# vim: set ai et sw=4 ts=4:

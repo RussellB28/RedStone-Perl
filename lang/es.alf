@@ -1,0 +1,17 @@
+# lang/es.alf - Spanish translation file.
+# Contributed by Matthew Burket.
+# Copyright (C) 2017 RedStone Development Group.
+# This program is free software; rights to this code are stated in doc/LICENSE.
+
+
+# Permission denied - Permiso denegado
+msge "Permission_denied" "Permiso denegado"
+
+# Access denied - Acceso denegado
+msge "Access_denied" "Acceso denegado"
+
+# Not enough parameters - No suficientes parámetros
+msge "Not_enough_parameters" "No suficientes parámetros"
+
+# Unknown command - Comando desconocido
+msge "Unknown_command" "Comando desconocido"

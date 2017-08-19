@@ -1,0 +1,192 @@
+#!/usr/bin/env perl
+
+# bin/buildmod - Module builder.
+Copyright (C) 2017 RedStone Development Group.
+# This program is free software; rights to this code are stated in doc/LICENSE.
+use 5.010_000;
+use strict;
+use warnings;
+use English qw(-no_match_vars);
+use FindBin qw($Bin);
+use Cwd;
+use Pod::Html;
+use Pod::Man;
+our $Bin = $Bin;
+our $VERSION = 1.00;
+
+my ($UPREFIX, %bin);
+$bin{cwd} = getcwd;
+if (!-e "$Bin/../build/syswide") {
+    # Must be a custom PREFIX install.
+    $bin{etc} = "$bin{cwd}/etc";
+    $bin{var} = "$bin{cwd}/var";
+    if (!-e "$Bin/lib/Lib/Auto.pm") {
+        # Must be a system wide install.
+        $bin{lib} = "$Bin/../lib/autobot/3.0.0";    
+        $bin{bld} = "$bin{lib}/build";
+        $bin{lng} = "$bin{lib}/lang";
+        $bin{mod} = "$bin{lib}/modules";
+    }
+    else {
+        # Or not.
+        $bin{lib} = "$Bin/../lib";
+        $bin{bld} = "$Bin/../build";
+        $bin{lng} = "$Bin/../lang";
+        $bin{mod} = "$Bin/../modules";
+    }
+    $UPREFIX = 1;
+}
+else {
+    # Must be a standard install.
+    $bin{etc} = "$Bin/../etc";
+    $bin{var} = "$Bin/../var";
+    $bin{lib} = "$Bin/../lib";
+    $bin{bld} = "$Bin/../build";
+    $bin{lng} = "$Bin/../lang";
+    $bin{mod} = "$Bin/../modules";
+    $UPREFIX = 0;
+}
+
+# Get module parameter.
+if (!defined $ARGV[0]) {
+    print 'Not enough parameters. Usage: buildmod <module>';
+    exit;
+}
+my $module = $ARGV[0];
+
+# Set full path.
+my $type = 0;
+my $modulep;
+if (-e "$bin{mod}/$module.pm") {
+    $modulep = "$bin{mod}/$module.pm";
+    $type = 1;
+}
+else {
+    if (-e "$bin{mod}/$module/Buildfile") {
+        $modulep = "$bin{mod}/$module/Buildfile";
+        $type = 2;
+    }
+    else {
+        print 'No such module '.$module;
+        exit;
+    }
+}
+
+my $data;
+if ($type == 1) {
+    open my $FHM, '<', $modulep;
+    my @BUF = <$FHM>;
+    close $FHM;
+
+    foreach my $line (@BUF) {
+        $line =~ s/(\r|\n)//g;
+        
+        if ($line =~ m/^# build: /sm) {
+            $data = substr $line, 9;
+        }
+    }
+
+    if (!defined $data) {
+        print 'No build line found in '.$module.'.pm. Aborting.';
+        exit;
+    }
+}
+elsif ($type == 2) {
+    open my $FHM, '<', $modulep;
+    my @BUF = <$FHM>;
+    close $FHM;
+
+    foreach my $line (@BUF) {
+        $line =~ s/(\r|\n)//g;
+        
+        $data .= $line;
+    }
+    
+    if (!defined $data) {
+        print 'No build datafound in '.$module.'/Buildfile. Aborting.';
+        exit;
+    }
+    else {
+        $data = substr $data, 1;
+    }
+}
+
+# Start build.
+my @pars = split ' ', $data;
+my $die = 0;
+
+print 'Building '.$module.'.....';
+
+foreach (@pars) {
+    my ($opt, $val) = split m/[=]/;
+
+    given ($opt) {
+        when ('cpan') {
+            print 'Checking for required CPAN modules.....'; print $RS;
+            my @vals = split ',', $val;
+            my $res = 0;
+            foreach my $cpanmod (@vals) {
+                $res = eval('require '.$cpanmod.'; 1;');
+                print '    '.$cpanmod.': '.(($res) ? 'Found' : 'Not Found');
+                if (!$res) { $die = 1 }
+            }
+            print $RS;
+            
+            if ($die) { print 'Failed to build '.$module.'.'; exit }
+        }
+        when ('perl') {
+            print 'Checking Perl version..... '.$PERL_VERSION.' - ';
+            if ($] < $val) { $die = 1 }
+            print (($die) ? 'Not OK' : 'OK');
+            if ($die) { print 'Failed to build '.$module.'.'; exit }
+        }
+    }
+}
+
+# Generate documentation.
+my $got_end = 0;
+open my $FMPH, '<', $modulep;
+my @MPBUF = <$FMPH>;
+close $FMPH;
+
+print 'Generating documentation.....';
+my $podbuf;
+foreach my $line (@MPBUF) {
+    if (!defined $line) { $line = ' ' }
+    $line =~ s/(\r|\n)//g;
+
+    if ($line eq '__END__') {
+        $got_end = 1;
+    }
+
+    if ($got_end and $line ne '__END__' and $line !~ m/^# vim:/sm) {
+        $podbuf .= $line."\n";
+    }
+}
+
+# Create the autodoc/ dir if it doesn't exist.
+my $docdir;
+if ($UPREFIX) {
+    $docdir = "$ENV{HOME}/autodoc";
+    if (!-d "$ENV{HOME}/autodoc") { mkdir "$ENV{HOME}/autodoc" }
+}
+else {
+    $docdir = "$Bin/../autodoc";
+    if (!-d "$Bin/../autodoc") { mkdir "$Bin/../autodoc" }
+}
+
+# Save to POD file in autodoc/
+open my $FMPNH, '>', "$docdir/$module.pod";
+print {$FMPNH} $podbuf;
+close $FMPNH;
+
+# Create HTML.
+pod2html("--infile=$docdir/$module.pod", "--outfile=$docdir/$module.html");
+# Create *roff.
+my $manifier = Pod::Man->new();
+$manifier->parse_from_file("$docdir/$module.pod", "$docdir/$module.1");
+
+print $RS;
+print 'Done.';
+
+# vim: set ai et sw=4 ts=4:

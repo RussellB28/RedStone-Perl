@@ -1,0 +1,16 @@
+# lang/en.alf - English translation file.
+# Copyright (C) 2017 RedStone Development Group.
+# This program is free software; rights to this code are stated in doc/LICENSE.
+
+
+# Permission denied - Permission denied
+msge "Permission_denied" "Permission denied"
+
+# Access denied - Access denied
+msge "Access_denied" "Access denied"
+
+# Not enough parameters - Not enough parameters
+msge "Not_enough_parameters" "Not enough parameters"
+
+# Unknown command - Unknown command
+msge "Unknown_command" "Unknown command"

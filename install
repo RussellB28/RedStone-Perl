@@ -1,0 +1,224 @@
+#!/usr/bin/env perl
+
+# install - Installation wizard.
+# Copyright (C) 2017 RedStone Development Group.
+# This program is free software; rights to this code are stated in doc/LICENSE.
+package Install;
+use strict;
+use warnings;
+use Getopt::Long;
+use English qw(-no_match_vars);
+use FindBin qw($Bin);
+use File::Copy;
+use File::Path qw(make_path remove_tree);
+our $Bin = $Bin;
+BEGIN { unshift(@INC, "$Bin/lib") }
+use Lib::Install;
+
+# Installation script.
+our $VERSION = 1.00;
+our $ERROR = 0;
+
+# Store the arguments passed to us.
+my ($opt_help, $opt_syswide, $PREFIX, $feature_nossl, $feature_sasl, $feature_ipv6, $feature_mysql, $feature_pgsql);
+GetOptions(
+    '--disable-ssl'    => \$feature_nossl,
+    '--enable-sasl'    => \$feature_sasl,
+    '--with-mysql'     => \$feature_mysql,
+    '--with-pgsql'     => \$feature_pgsql,
+    '--prefix=s'       => \$PREFIX,
+    '--syswide'        => \$opt_syswide,
+    '--help'           => \$opt_help,
+);
+
+# If --help was passed.
+if ($opt_help) {
+    print <<"HELP";
+
+Auto IRC Bot Installation Wizard (v1.00).
+Usage: perl install [options]
+
+Options:
+    --disable-ssl  Disables SSL support.
+    --enable-sasl  Enables SASL support.
+    --with-mysql   Uses MySQL instead of SQLite.
+    --with-pgsql   Uses PostgreSQL instead of SQLite.
+    --syswide      Prefixes bin/ files with auto- (excluding `auto` itself), as
+                   well as installs build/ to lib/ instead. Always use this
+                   when installing to /usr.
+
+    --prefix=PREFIX  Installs files to PREFIX
+                     [$Bin]
+
+HELP
+    exit 1;
+}
+
+# Set features.
+my $features = 'base';
+$features .= ' ssl' unless $feature_nossl;
+$features .= ' sasl' if $feature_sasl;
+if ($feature_mysql) { $features .= ' mysql' }
+elsif ($feature_pgsql) { $features .= ' pgsql' }
+else { $features .= ' sqlite' }
+
+# Where to install.
+my $upref;
+if (!$PREFIX) {
+    $PREFIX = $Bin;
+    $upref = 0;
+}
+else { $upref = 1 }
+
+# Adjust installation to be more appropriate for system-wide installs.
+my $libbuild = 0;
+if ($opt_syswide) { $libbuild = 1 }
+
+
+# Check Perl version.
+println "Checking Perl version..... $^V";
+eval {
+    require 5.010_000;
+} or println "This version of Perl is too old. Upgrade to Perl 5.10.0 or later and try again." and exit;
+
+# Check operating system.
+print "Checking operating system..... $OSNAME - ";
+if ($OSNAME =~ /dos/i) {
+    print "DOS is not supported.\r\n";
+    exit;
+}
+elsif ($OSNAME eq "MSWin32") {
+    print "OK\r\n";
+}
+elsif ($OSNAME eq "NetWare") {
+    print "NetWare is not supported.\r\n";
+    exit;
+}
+elsif ($OSNAME eq "linux") {
+    print "OK\n";
+}
+elsif ($OSNAME eq "os2") {
+    print "IBM OS/2 is not supported.\r\n";
+    exit;
+}
+elsif ($OSNAME =~ /mac/i or $OSNAME =~ /darwin/i) {
+    print "OK\r";
+}
+elsif ($OSNAME eq "freebsd") {
+    print "OK\n";
+}
+elsif ($OSNAME eq "openbsd") {
+    print "OK\n";
+}
+elsif ($OSNAME eq "solaris") {
+    print "OK\n";
+}
+else {
+    print "Unknown operating system. Contact support.\r\n";
+    exit;
+}    	
+
+# Check for Perl core modules.
+println "Checking for core Perl modules.....";
+checkcore();
+println "\0";
+if ($ERROR) {
+    println "This Perl install is missing some core modules. Consider reinstalling Perl.";
+    exit;
+}
+else {
+    println "All good.";
+}
+
+# Check for required CPAN modules.
+println "\0";
+println 'Checking for required CPAN modules......';
+println "\0";
+modfind('DBI');
+modfind('DBD::SQLite') if $features =~ /sqlite/;
+modfind('DBD::mysql') if $features =~ /mysql/;
+modfind('DBD::Pg') if $features =~ /pgsql/;
+modfind('Class::Unload');
+modfind('IO::Socket::IP');
+modfind('IO::Async');
+modfind('IO::Async::Stream');
+modfind('IO::Async::Timer::Periodic');
+modfind('Net::Async::HTTP');
+modfind('IO::Socket::SSL') if $features =~ /ssl/;
+modfind('MIME::Base64') if $features =~ /sasl/;
+println "\0";
+
+if ($ERROR) {
+    println "Failed to install. Please install the missing CPAN modules and try again.";
+    exit;
+}
+else {
+    println "All good.";
+}
+
+# Create build.
+println "\0";
+println "Building.....";
+if (!-d $PREFIX) { make_path($PREFIX) }
+my $libdir;
+if ($libbuild) { $libdir = "$PREFIX/lib/autobot/3.0.0" }
+else { $libdir = "$PREFIX/lib" }
+my $builddir;
+if ($libbuild) { $builddir = "$libdir/build" }
+else { $builddir = "$PREFIX/build" }
+if (!-d $builddir) { make_path($builddir) }
+build($features, $builddir, $opt_syswide);
+
+# Install.
+if ($upref) {
+    require File::Copy::Recursive;
+    File::Copy::Recursive->import('rcopy');
+    my $langdir;
+    if ($libbuild) { $langdir = "$libdir/lang" }
+    else { $langdir = "$PREFIX/lang" }
+    my $moddir;
+    if ($libbuild) { $moddir = "$libdir/modules" }
+    else { $moddir = "$PREFIX/modules" }
+    my $distdir;
+    if ($libbuild) { $distdir = "$libdir/dist" }
+    else { $distdir = "$PREFIX/dist" }
+    println "Installing.....";
+    if (!-d "$PREFIX/bin") { make_path("$PREFIX/bin") }
+    if (!-d $libdir) { make_path($libdir) }
+    if (!-d $langdir) { make_path($langdir) }
+    if (!-d $moddir) { make_path($moddir) }
+    if (!-d $distdir) { make_path($distdir) }
+
+    my $bgenssl = 'genssl';
+    my $bbuildmod = 'buildmod';
+    my $bwizard = 'wizard';
+    if ($libbuild) {
+        $bgenssl = "auto-$bgenssl";
+        $bbuildmod = "auto-$bbuildmod";
+        $bwizard = "auto-$bwizard";
+    }
+    copy("$Bin/bin/auto", "$PREFIX/bin/auto");
+    copy("$Bin/bin/buildmod", "$PREFIX/bin/$bbuildmod");
+    copy("$Bin/bin/genssl", "$PREFIX/bin/$bgenssl");
+    copy("$Bin/bin/wizard", "$PREFIX/bin/$bwizard");
+    chmod 0755, "$PREFIX/bin/auto", "$PREFIX/bin/$bgenssl", "$PREFIX/bin/$bbuildmod", "$PREFIX/bin/$bwizard";
+    rcopy("$Bin/lib/*", "$libdir/");
+    rcopy("$Bin/lang/*", "$langdir/");
+    rcopy("$Bin/modules/*", "$moddir/");
+    copy("$Bin/etc/example.conf", "$distdir/");
+    remove_tree("$libdir/File");
+}
+
+println 'Done.';
+
+println q{};
+if ($libbuild) {
+    println 'To install modules, run the auto-buildmod utility on a module.';
+}
+else { installmods($PREFIX) }
+println q{};
+
+# Success!
+println "Done. RedStone successfully installed.";
+
+# vim: set ai et sw=4 ts=4:

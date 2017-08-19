@@ -1,0 +1,452 @@
+Auto IRC Bot 3.0: Change Log Prior to conversion to RedStone 1.0
+-------------------------------------------------------------------------------
+
+3.0 Indev
+===============================================================================
+    * IPLookup: Lookup information on an IP address
+    * Factoid: Add edit command
+    * Fixed: bug in creating var/ making it unwritable and unreadable.
+    * Logger: Added more logging to logchan and made all days be two digits (eg. November 1st -> November 01st)
+    * contact_home: Collect stats on version/operating systems Auto is ran on. In the future this will be expanded upon.
+    * API: allow hooking to any and every possible command via rchook.
+    * Pisg: Added a module to automate Pisg and log with a recognized format.
+    * API::Socket - Exposing sockets to the API allowing custom sockets/parsers in modules.
+    * BotStats 1.01: Changed command to match module name and added support for API::Socket.
+    * Fixed: If -c was passed at runtime, also pass it upon restart.
+    * Sandboxing Eval and module loading
+    * QDB: Majority rewrite. New features. See module for details.
+    * OnJoin: Added a configurable HelloChan replacement.
+    * LinkTitle: Remove trailing/leading spaces and ignore if a title is empty.
+    * Replay: Added a module to replay channel history.
+    * Twitter: A twitter feed announcer.
+    * Factoids: Added INFO command.
+    * ABStats: Additonal bot statistics.
+    * Pisg 1.01: Recheck certain things when rehashed.
+    * Rehash: fixed a crash bug when trying to load a module in config that's not already loaded.
+    * NickPrefix: Extends fantasy support to allow for command execution when the bot is addressed.
+    * DNS: A module for resolution of DNS hostnames.
+    * Seen: A seen module, adds the SEEN command.
+    * LinkTitle 3.00: Fixes all known bugs in LinkTitle and adds YouTube title support.
+    * contact_home: Fixed bug when check-in server is unresponsive.
+    * match_user/has_priv: Fixed a bug where only one block can be matched even if a user fits into multiple. This could cause you not to get some privileges.
+    * module loading: Fixed a bug where mod_load would say a module loaded fine when it really didn't.
+    * Added IPv6 SSL support.
+    * Fixed a bug in API::Socket that'd cause the function to not return upon an error.
+    * Made bind optional in server blocks.
+    * Spotify: New module that adds spotify searching and spotify uri information.
+    * LastFM: New module that apps last.fm now playing and auto-annoucements of your now playing.
+    * Autojoin: Added module to manage autojoin from IRC. This will later replace the configuration autojoin.
+    * Sockets: We now use IO::Async which provides us with various loop methods. This adds the 'loop' option to the configration.
+    * Auto::HTTP: Exposed Net::Async::HTTP to Auto. This allows for modules to make non-blocking http requests.
+
+3.0 Alpha 11
+===============================================================================
+    * Fixed: chanstatus bug introduced by everyones favorite starcoder.
+    * Added a Logger module for HTML logging.
+    * Hooks: make on_cmode return a src hash instead of server name.
+    * Hooks: added on_iquit which also returns common channels with Auto.
+    * Added a BTC module for checking the current BTC conversion rates.
+    * Added a Factoids module for advanced factoid functionality.
+    * Added a Karma module for tracking the karma of users.
+    * Added support for CTCP TIME.
+    * QDB 1.05: Improved safety and functionality in SEARCH.
+    * Fixed formatting on clients such as Irssi with format_identify.pl.
+    * Added an Urban module for looking up terms on Urban Dictionary.
+    * Fixed a bug in state data caused by NICK'ing to your current nick, just
+      with different cases.
+    * Ping 1.03: Added a private AWAY command. - dwfreed
+    * UNO 2.00: Now uses a real deck and has 0 cards!
+    * API::IRC::ban: New optional argument, IntBool $return. If a true value is
+      passed, it will return an array of (ban mode, ban mask) rather than 1/0.
+    * Massively improved State::IRC and fixed nasty bugs in chanusers.
+    * GoMini: Added a module for shortening URLs via gomini.me.
+    * LinkTitle 2.00: New and improved LinkTitle. Now uses Furl.
+    * Werewolf 1.13: Changed minimum player counts for several roles. See docs.
+    * Werewolf: Redesigned STATIC data structure to be less breakable.
+    * UNO: Fixed a small bug in TOPTEN.
+    * Werewolf 1.12: Added curses.
+    * example.conf updated for a chanstatus requirement we forgot about.
+    * Ping 1.02: cmd.ping.admin for overriding the ratelimit.
+    * Werewolf: Fixed a bug in drunk assignment.
+    * Werewolf 1.11: Swapped angels and traitors minimum players.
+    * Werewolf: Manage garbage data better.
+    * Werewolf: Fixed a HUGE bug in vote calculating.
+    * Google: A temporary Google Web Search module.
+    * IsItUp 1.01: New and improved IsItUp. Now uses Furl.
+    * Calc 1.01: New and improved Calc. Now uses Furl.
+    * FML 1.02: Retrieve FML's using a better method. Now requires HTML::Tree.
+    * Bitly 1.01: New and improved Bitly. Now uses Furl.
+    * FML 1.01: New and improved FML. Now uses Furl.
+    * Coin: Added a module for random coin tosses.
+    * Fixed a privset bug that broke privsets with multiple privileges.
+    * Werewolf 1.10: Made commands configurable.
+    * Werewolf 1.09: Changed required player counts for roles.
+    * Werewolf: Randomization cleanup and improvements.
+    * Werewolf: Math bug fixes.
+    * Werewolf: Bug fixes.
+    * Werewolf: Improvements and bug fixes.
+    * Werewolf: Fixed a small clock bug.
+    * Fixed a bug with var/ being created as 0600 instead of 0644.
+    * WerewolfExtra: Added a silly addon module for Werewolf.
+    * Werewolf: Time recording.
+    * Werewolf: Fixed an issue in the clock.
+    * Werewolf 1.08: New gunner feature.
+    * Werewolf 1.07: Various improvements.
+    * Updated Core::IRC::Users to be more efficient.
+    * Added a WerewolfAdmin module for administering the Werewolf IRC game.
+    * Fixed significant state mismatched data bugs.
+    * Added API::IRC::ison for checking if a user is on a channel.
+    * Werewolf: Fixed a bug in harlot staying home.
+    * Werewolf: Various bug fixes.
+    * Werewolf 1.06: Fixed an annoyance and added traitor transformation.
+    * Commands now work with prefixes even in PM.
+    * Ping: Determines end by numeric 315 instead of a 3-second timer now.
+    * Werewolf: Fixed a GUARD issue and made it possible to VISIT yourself.
+    * Possibly fixed a rare fatal error.
+    * Werewolf: Rewrote WAIT to be more decent.
+    * Werewolf: Wounded villagers are now excluded from winning villager count.
+    * Werewolf: Dynamic lynch and no victim messages.
+    * Werewolf 1.05: Added WAIT command.
+    * Werewolf: Improved STATS to be smart.
+    * Werewolf 1.04: Added village drunks and fixed other issues.
+    * Werewolf: Fixed various annoyances. Also raised chance of gun hitting.
+    * Werewolf: Fixed a nasty lynch nick exploit.
+    * Fixed an issue in HELP.
+    * Added a Ping module.
+    * Moved Werewolf back to stable.
+
+3.0 Alpha 10
+===============================================================================
+    * Werewolf moved to unstable/ for exclusion from alpha10.
+    * Werewolf: Fixed a bug causing double lynches occasionally.
+    * Werewolf: One bug fix and multiple bullets.
+    * Werewolf: Fixed timeout bug.
+    * Werewolf: Fixed various warnings.
+    * Werewolf: Handful of bugs fixed, timeouts rewritten, wolf assignment
+      rewritten. (see ROLES:Werewolf)
+    * Werewolf: Fixed an annoyance in VOTES.
+    * Werewolf: Fixed another round of bugs.
+    * Werewolf: Fixed a grammatical error. Thanks TAD!
+    * Werewolf: Fixed a bug that occasionally caused a person to get wolf
+      twice in the same game.
+    * Werewolf: Fixed a typo that broke the gun on occasion.
+    * Fixed a minor retract bug in Werewolf.
+    * Fixed two major bugs in Werewolf that messed up game play.
+    * Fixed several bugs and changed around JOIN/START/BEGIN in Werewolf.
+    * Fixed parsing of host masks with / in them. (if it was broken)
+    * Werewolf: Fixed a leave before game begin bug.
+    * Aliases now work in PM's to the bot too.
+    * Added an epic, Werewolf module.
+    * Made slog() saner.
+    * Syntax for mod_init() changed. Package name is no longer required.
+    * Added German translation to Greet help hash. - nridley
+    * Added German translation to FML help hash. - nridley
+    * Added German translation to Eval help hash. - nridley
+    * Added German translation to EightBall help hash. - nridley
+    * Added German translation to Dictionary help hash. - nridley
+    * Added German translation to Calc help hash. - nridley
+    * Added German translation to Bitly help hash. - nridley
+    * Added German translation to AUR help hash. - nridley
+
+3.0 Alpha 9
+===============================================================================
+    * Bug fix: Fixed an exploit in QDB RAND.
+    * UNO: Fixed a formatting issue in duration.
+
+3.0 Alpha 8
+===============================================================================
+    * Full support for custom PREFIX installs (including global installs) has
+      been completed.
+    * Added fastest/slowest game, most cards and most players records to UNO.
+    * Fixed a bug in UNO that allowed users to join more than once.
+    * Added optional uno:english option. See documentation for UNO.
+    * UNO has a new config option, uno:msg, for setting what method the bot
+      uses for private messages.
+    * Added command aliasing.
+    * Moved botinfo to State::IRC.
+    * Added hook on_selfkick for when we are kicked from a channel.
+    * Moved chanusers to State::IRC.
+    * Created State::IRC.
+    * UNO now keeps game duration and cards played count.
+    * Added a LOLCAT module for translating English to LOLCAT.
+    * EightBall module rewritten.
+    * Fixed a bug in LinkTitle that caused multi-line <title>'s to display
+      wrong.
+    * Added `wizard`, for creating local Auto config directories.
+    * Made Auto respond properly to PRIVMSGs received before connection.
+    * Added an AUR module.
+    * Fixed an exploit in QDB that allowed users to use services fantasy
+      commands with the bot's account.
+    * Heavily improved ./install.
+
+3.0 Alpha 7
+===============================================================================
+    * Fixed a bug in UNO where rehashing during a game caused a crash.
+    * Proto::IRC::umodes renamed to Proto::IRC::botinfo{svr}{modes}.
+    * Fixed a bug where incoming PART's from ourselves were not parsed.
+    * Our usermodes are now tracked in Proto::IRC::umodes.
+    * Added an Oper module.
+    * Added events on_cmode and on_umode.
+    * Added event on_myinfo for RPL_MYINFO (numeric 004).
+    * Raw hooks now take hook names and support multiple hooks. This changes
+      rchook_add and rchook_del.
+    * Vim modelines must be at the bottom of files. Modules updated.
+    * Renamed Lib::Users to Core::IRC::Users.
+    * Added Lib::Users, for network-wide user tracking. This brings many new
+      possibilities to modules, including an account system.
+    * Added hook on_namesreply.
+    * All data related to a network is now deleted on disconnect.
+    * Added hook on_disconnect.
+    * Added various options to bin/auto, including support for multiple config
+      files. See bin/auto -h for details.
+    * Changed on_nick, on_quit, on_part, and on_kick source hashrefs to include
+      server, removing svr.
+    * Bumped minimum API version to 3.0.0a7.
+    * Fixed the arguments on_whoreply passes.
+
+3.0 Alpha 6
+===============================================================================
+    * Bug fix: Fixed an issue with SASL timeout.
+    * Added hook on_capack.
+    * CAP is now core.
+    * Fixed a bug with multi-prefix support.
+    * Added fpfmt() to API::Std.
+    * Auto::GR renamed to $Auto::VERGITREV.
+    * Bumped minimum version for API to 3.0.0a6.
+    * Changed on_topic args to: full source hashref, new topic array
+    * on_topic is now triggered for any topic change, regardless of source.
+    * Now parsing numeric 004.
+    * Added hook on_isupport.
+    * Added a BotStats module for returning statistics about the bot.
+    * Now parsing numeric 396.
+    * Added who() to API::IRC.
+    * Added hook on_whoreply.
+    * PRIVMSGs and NOTICEs that would cause a >512 bytes resulting message are
+      now divided into multiple messages.
+    * Renamed botnick to botinfo.
+    * Renamed Parser::IRC to Proto::IRC.
+    * Added an Eval module.
+    * Added an UNO module.
+    * Added on_part hook.
+    
+3.0 Alpha 5
+===============================================================================
+    * Bug fix: Fixed broken rehash.
+    * Ignore PRIVMSG's if they're from an invalid source.
+    * Fixed an odd bug when viewing non-existent quotes.
+    * You can now define how many results are returned by QDB SEARCH/MORE at a
+      time with qdb_search_resnum in the config.
+    * Added SEARCH and MORE to QDB.
+    * Killed EMODS in the starter script and updated MODS
+    * Added core command MODLIST.
+    * Added command level 3 for logchan-only command.
+    * Added a LinkTitle module for getting the title of a web page posted in a
+      channel.
+
+3.0 Alpha 4
+===============================================================================
+    * Added a Dictionary module for looking up definitions of words.
+    * server:ajoin now supports channel keys by spacing the name and key.
+    * Hooks can now block events by returning -1.
+    * bin/buildmod now retrieves the POD from modules and creates man(1) page
+      plus HTML file.
+    * cjoin() now supports a channel key as the last argument.
+    * Added a ChanTopics module for advanced management of channel topics.
+    * bantype is now a required configuration value.
+    * Added ban() to API::IRC.
+    * Changed on_cprivmsg arguments to: \%src, $channel, @msg
+    * Changed on_uprivmsg arguments to: \%src, @msg
+    * Bug fix: Commands getting Permission denied even with incorrect prefix.
+    * Changed command callback arguments to: \%src, @args
+    * Bundle server with \%src in the on_rcjoin event.
+    * logchan is now joined automatically.
+    * Changed on_notice arguments to: \%src, $target, @msg
+    * Clean up shutdown.
+    * Created event on_shutdown.
+    * Shutdown if there are no more IRC connections.
+    * Added the ability to use printf(3) % variables in trans().
+    * Added slog() to API::Log for logging to IRC.
+    * Added a Greet module for greeting users on join.
+    * Added PostgreSQL support. Official modules do not support this yet.
+    * database:format now a required configuration value.
+    * Added support for MySQL. ./install --with-mysql
+    * Added a database upgrade script for upgrading the `qdb` table in 3.0.0a3
+      to the new format used by 3.0.0a4.
+
+3.0 Alpha 3
+===============================================================================
+    * Added command rate limiting.
+    * Added module installer to ./install.
+    * Added a module buildsys.
+    * Added a QDB module.
+    * SIGHUP now triggers a rehash.
+    * Added core command REHASH.
+    * Moved signal handlers to Lib::Auto.
+    * Renamed src/ to lib/.
+    * Switched from Auto-Flatfile to SQLite for database backend.
+    * Added a Badwords module.
+    * Added kick() to API::IRC.
+    * Added DBI and DBD::SQLite to core dependencies.
+    * Added on_connect hook, triggered after we receive 001.
+    * Updated hooks to use hashrefs.
+    * Moved CTCP VERSION reply to Core::IRC.
+    * Renamed Core::IRC to Core::Cmd.
+    * Parse MODE.
+    * Added CertFP support.
+    * Rewrote socket read/write methods.
+    * Added SSL support.
+    * Added act() to API::IRC.
+    * Added IPv6 support.
+
+3.0 Alpha 2
+===============================================================================
+    * Added update check for non-indev releases.
+    * Added Git revision to version string for dev releases.
+    * Added an FML module for retrieving random FML quotes.
+    * Privilege to use a command is now handled by the priv arg of cmd_add.
+    * HELP now only displays help if the user has the appropriate privileges.
+    * Updated Core::IRC and all modules to obey the updated API.
+    * Deleted shelp from cmd_add, replaced with privilege. Renamed fhelp to
+      help.
+    * If fantasy HELP is used, only display fantasy commands, if private HELP
+      is used, only display private commands.
+    * Fixed cmd_add syntax. Correct format: name, level, short help, full help,
+      callback.
+    * Added core command HELP.
+    * Added core command RESTART.
+    * Added config option server:autorejoin for rejoining on kick.
+    * Added event on_kick.
+    * Parse KICK.
+    * Added event on_quit.
+    * Parse QUIT.
+    * Added event on_part.
+    * Parse PART.
+    * Update chanusers on JOIN.
+    * Properly parse NICK and update chanusers.
+    * Added --enable-ssl to ./install for the future SSL support.
+    * Added chanstatus-based permissions. This works via user:chanstatus.
+    * Catch __WARN__ and __DIE__, logging to file.
+    * Added Spanish translations.
+    * Added EightBall module.
+    * Rewrote the socket engine. This should fix random timeouts.
+    * Added IsItUp module.
+    * Added user:net for network-specific user blocks.
+    * Bug fix: Fixed broken no-parameter config blocks.
+    * Added core command SHUTDOWN.
+    * Added core command MODRELOAD.
+    * Added core command MODUNLOAD.
+    * Added core command MODLOAD.
+    * Added Weather module.
+    * Added Calc module.
+    * Fixed the NAME,VER,SVER,REV,RSTAGE constants.
+    * Added a CTCP VERSION reply.
+    * Created Core::IRC.
+    * Added Bit.ly module.
+
+3.0 Alpha 1
+===============================================================================
+    * Added mod_exists() to API::Std.
+    * Added SASL support with modules/SASLAuth.
+    * Added mdelete() to DB/Flatfile.
+    * Added topic() to API::IRC.
+    * Added has_priv() to API::Std.
+    * Finished the host-based privilege/permission system.
+    * Added hook on_preconnect, this comes before USER (after PASS).
+    * Added match_mask() to API::IRC and match_user() to API::Std, match_user
+      checks config user:mask to find a user block, if a match is found, the
+      configured username is returned.
+    * Added rchook_add() and rchook_del() to API::Std.
+    * Parse NOTICE and added hook on_notice.
+    * Added hooks on_uprivmsg and on_cprivmsg.
+    * Module names are now case sensitive.
+    * Added config option module for auto-loading a module.
+    * Fixed a bug in API::Log that caused invalid months.
+    * Changed how command data is passed to fix a bug.
+    * Removed dependency Async.
+    * Rewrote the socket engine.
+    * Added cmd_add|del|run() to API::Std for commands.
+    * Parse PRIVMSG.
+    * Enabled ./install features are now stored in $Auto::ENFEAT.
+    * Added --enable-sasl option to ./install for enabling SASL.
+    * Added names() to API::IRC which sends NAMES.
+    * Parse NAME replies (Numeric:353).
+    * Parse Numeric:005 and store PREFIX's data.
+    * Bug fix: The bot's nick is now stored correctly.
+    * Added server:modes config option for setting modes on connect.
+    * Parse TOPIC. (and added hook on_topic)
+    * Added DB::Flatfile for DB:: database functions.
+    * Added umode() to API::IRC.
+    * Added events on_ucjoin, on_rcjoin and on_nick.
+    * Parse numerics 465, 471-475 and 477.
+    * Added an optional @args onto event_run() for sending @args to the subs
+      that have hooked onto the event.
+    * Parse the channels the bot is in.
+    * Parse Numeric:438.
+    * Added timer_add() and timer_del() to API::Std for timers.
+    * Added events: on_sigterm, on_sigint and on_sighup.
+    * Added event_add|del|run() and hook_add|del() to API::Std for managing and
+      running events/hooks.
+    * server:nspass removed. server:idstr added.
+    * Changed the way we parse strings to support multi-word strings in config
+      values.
+    * Added server:nspass to config options. Will be replaced in the future by
+      idstr.
+    * Parse NICK.
+    * Added usrc() to API::IRC for formatting a source.
+    * Added awarn() to API::Std for warnings.
+    * Parse Numeric:432.
+    * Parse Numeric:433.
+    * Added nick() to API::IRC.
+    * Added %got_001 to Parser::IRC for checking if we've been sent 001.
+    * Renamed API::IRC::mode() to cmode()
+    * Added mod_init() and mod_void() to API::Std.
+    * Use Class::Unload.
+    * Handle SIGTERM, SIGINT and SIGHUP.
+    * Added quit() to API::IRC.
+    * Added notice() to API::IRC.
+    * Added privmsg() to API::IRC.
+    * Added mode() to API::IRC.
+    * Added PASS support.
+    * Bug fix: err() fatal errors now work. They didn't work due to bad regex.
+    * Added an installation script.
+    * Fork into the background if not in debug mode.
+    * Begin on API::IRC.
+    * Parse PING and Numeric:001.
+    * Begin on the IRC parser.
+    * Added sockets, support for multiple asynchronous sockets.
+    * Bug fix: conf_get() now returns correct data by checking what type of
+      reference the requested value is.
+    * Foundation completed.
+    * Added API function err()
+    * Added API function dbug()
+    * Added a debug mode.
+    * Old logs can now expire if set to do so in config.
+    * Added API function alog()
+    * Added API::Log::expire_logs()
+    * Added API function println()
+    * Use Mouse.
+    * Added contributor; Chazz "Alexandria" Wolcott.
+    * Gettext is no longer used.
+    * German translations. Contributed by Chazz "Alexandria" Wolcott.
+    * Converted English and French files to new format.
+    * Created a new method of translation.
+    * Use Exporter for the API functions.
+    * Added developer; Timothy Estes.
+    * Added developer; Russell Bradford.
+    * Require Perl 5.10.0 or higher.
+    * Removed developer; Russell Bradford.
+    * Renamed config value language to locale.
+    * Added an example config file.
+    * Added API function conf_get()
+    * Renamed API::Standard to API::Std
+    * Created a configuration file parser.
+    * New developer; Russell Bradford.
+    * Import the POSIX module.
+    * Fixed accent marks in French translation files.
+    * French translations.
+    * Added gettext compile script.
+    * Gettext English language files.
+    * New developer; Matthew Barksdale.
+    * Added documentation for the future Auto-Flatfile database format.
+    * Added a basic launcher.
+    * Finished standard documentation.
