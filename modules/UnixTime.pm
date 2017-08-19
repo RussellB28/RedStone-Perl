@@ -105,7 +105,7 @@ sub cmd_unixtime {
 }
 
 # Start initialization.
-API::Std::mod_init('UnixTime', 'RedStone Development Group', '2.00', '3.0.0a11');
+API::Std::mod_init('UnixTime', 'RedStone Development Group', '1.00', '3.0.0a11');
 # build: cpan=Date::Parse perl=5.010000
 
 __END__
@@ -116,7 +116,7 @@ __END__
 
 =head1 VERSION
 
- 2.00
+ 1.00
 
 =head1 SYNOPSIS
 
