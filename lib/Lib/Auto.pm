@@ -260,6 +260,12 @@ sub ircsock {
         }
     }
 
+    # Set SSL cert verification mode.
+    if ($usessl) {
+      $conndata{'SSL_verify_mode'} = ($cdata->{'verify_ssl'}[0] ? 0x01 : 0x00);
+    }
+
+
     # Create the socket.
     my $pkg = ($usessl ? 'IO::Socket::SSL' : 'IO::Socket');
     $conndata{LocalAddr} = $cdata->{'bind'}[0] if defined $cdata->{'bind'}[0]; 
