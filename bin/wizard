@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 # bin/wizard - Wizard for creating local Auto configuration directories.
-Copyright (C) 2017 RedStone Development Group.
+# Copyright (C) 2017 RedStone Development Group.
 # This program is free software; rights to this code are stated in doc/LICENSE.
 use 5.010_000;
 use strict;

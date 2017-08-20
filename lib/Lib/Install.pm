@@ -1,5 +1,5 @@
 # lib/Lib/Install.pm - Installation subroutines.
-Copyright (C) 2017 RedStone Development Group.
+# Copyright (C) 2017 RedStone Development Group.
 # This program is free software; rights to this code are stated in doc/LICENSE.
 package Lib::Install;
 use strict;
