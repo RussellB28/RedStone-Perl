@@ -193,6 +193,18 @@ sub rehash {
         }
     }
 
+    # Load aliases
+    undef %API::Std::ALIASES;
+    if (conf_get('aliases:alias')) {
+        my $aliases = (conf_get('aliases:alias'))[0];
+        foreach (@{$aliases}) {
+            if ($_ =~ m/\s/xsm) {
+                my @data = split /\s/xsm, $_;
+                API::Std::cmd_alias($data[0], join ' ', @data[1..$#data]);
+            }
+        }
+    }
+
     ## Create sockets.
     alog '* Connecting to servers...';
     # Get servers from config.
