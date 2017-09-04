@@ -244,7 +244,7 @@ sub ircsock {
         Proto => 'tcp',
         PeerAddr  => $cdata->{'host'}[0],
         PeerPort  => $cdata->{'port'}[0],
-        Timeout   => 20,
+        Timeout   => $cdata->{'timeout'}[0],
         Domain    => ($use6 ? Socket::AF_INET6 : Socket::AF_INET),
         SSL_verify_mode => 0x00
     );
