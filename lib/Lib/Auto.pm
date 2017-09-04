@@ -142,40 +142,38 @@ sub rehash {
             # Iterate through them.
             foreach my $mckpriv (keys %mcprivs) {
                 # Switch statement for the values.
-                given ($mckpriv) {
-                    # If it's 'priv', save it as a privilege.
-                    when ('priv') {
-                        if (defined $PRIVILEGES{$tckpriv}) {
-                            # If this privset exists, push to it.
-                            for (0..@{($mcprivs{$mckpriv})[0]}) {
+                # If it's 'priv', save it as a privilege.
+                if(lc($mckpriv) eq "priv") {
+                    if (defined $PRIVILEGES{$tckpriv}) {
+                        # If this privset exists, push to it.
+                        for (0..@{($mcprivs{$mckpriv})[0]}) {
+                            push @{ $PRIVILEGES{$tckpriv} }, ($mcprivs{$mckpriv})[0][$_];
+                        }
+                    }
+                    else {
+                        # Otherwise, create it.
+                        @{ $PRIVILEGES{$tckpriv} } = (($mcprivs{$mckpriv})[0][0]);
+                        if (scalar @{($mcprivs{$mckpriv})[0]} > 1) {
+                            for (1..@{($mcprivs{$mckpriv})[0]}) {
                                 push @{ $PRIVILEGES{$tckpriv} }, ($mcprivs{$mckpriv})[0][$_];
                             }
                         }
-                        else {
-                            # Otherwise, create it.
-                            @{ $PRIVILEGES{$tckpriv} } = (($mcprivs{$mckpriv})[0][0]);
-                            if (scalar @{($mcprivs{$mckpriv})[0]} > 1) {
-                                for (1..@{($mcprivs{$mckpriv})[0]}) {
-                                    push @{ $PRIVILEGES{$tckpriv} }, ($mcprivs{$mckpriv})[0][$_];
-                                }
-                            }
-                        }
                     }
-                    # If it's 'inherit', inherit the privileges of another privset.
-                    when ('inherit') {
-                        # If the privset we're inheriting exists, continue.
-                        if (defined $PRIVILEGES{($mcprivs{$mckpriv})[0][0]}) {
-                            # Iterate through each privilege.
-                            foreach (@{ $PRIVILEGES{($mcprivs{$mckpriv})[0][0]} }) {
-                                # And save them to the privset inheriting them
-                                if (defined $PRIVILEGES{$tckpriv}) {
-                                    # If this privset exists, push to it.
-                                    push @{ $PRIVILEGES{$tckpriv} }, $_;
-                                }
-                                else {
-                                    # Otherwise, create it.
-                                    @{ $PRIVILEGES{$tckpriv} } = ($_);
-                                }
+                }
+                # If it's 'inherit', inherit the privileges of another privset.
+                elsif(lc($mckpriv) eq "inherit") {
+                    # If the privset we're inheriting exists, continue.
+                    if (defined $PRIVILEGES{($mcprivs{$mckpriv})[0][0]}) {
+                        # Iterate through each privilege.
+                        foreach (@{ $PRIVILEGES{($mcprivs{$mckpriv})[0][0]} }) {
+                            # And save them to the privset inheriting them
+                            if (defined $PRIVILEGES{$tckpriv}) {
+                                # If this privset exists, push to it.
+                                push @{ $PRIVILEGES{$tckpriv} }, $_;
+                            }
+                            else {
+                                # Otherwise, create it.
+                                @{ $PRIVILEGES{$tckpriv} } = ($_);
                             }
                         }
                     }

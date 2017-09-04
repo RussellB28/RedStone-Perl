@@ -23,7 +23,8 @@ hook_add('on_whoreply', 'state.irc.who', sub {
     my ($svr, $nick, $chan, undef, undef, undef, $status, undef, undef) = @_;
 
     # Are we expecting WHO data for this channel?
-    if (lc $chan ~~ @who_wait) {
+    my %hIsWaiting = map { $_ => 1 } @who_wait;
+    if (exists($hIsWaiting{lc($chan)})) {
         # Grab the server's prefixes.
         my @prefixes = values %{$Proto::IRC::csprefix{$svr}};
         # And this user's modes.
@@ -32,7 +33,9 @@ hook_add('on_whoreply', 'state.irc.who', sub {
         # Iterate through their modes, saving channel status modes to memory.
         $chanusers{$svr}{lc $chan}{lc $nick} = q{};
         foreach my $mode (@umodes) {
-            if ($mode ~~ @prefixes) {
+	    my %hIsModeAPrefix = map { $_ => 1 } @prefixes;
+            if (exists($hIsModeAPrefix{$mode})) {
+	    API::Log::slog("OLE REPLY: ".$nick." with ".$mode);
                 # Okay, so we've got some channel status, figure out the actual mode.
                 my $amode;
                 while (my ($pmod, $pfx) = each %{$Proto::IRC::csprefix{$svr}}) {
@@ -58,7 +61,8 @@ rchook_add('315', 'state.irc.eow', sub {
     my ($svr, (undef, undef, undef, $chan, undef)) = @_;
 
     # If we're expecting WHO data for this channel, stop expecting, provided we've gotten data at all.
-    if (lc $chan ~~ @who_wait and keys %{$chanusers{$svr}{lc $chan}} > 0) {
+    my %hIsWaiting = map { $_ => 1 } @who_wait;
+    if (exists($hIsWaiting{$chan}) and keys %{$chanusers{$svr}{lc $chan}} > 0) {
         for my $loc (0..$#who_wait) {
             if ($who_wait[$loc] eq lc $chan) { splice @who_wait, $loc, 1; last }
         }

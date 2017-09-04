@@ -297,32 +297,31 @@ sub cap {
     my $capout;
 
     # Iterate ex[3].
-    given ($ex[3]) {
-        when ('LS') {
-            # Get our CAP REQ list.
-            my @capreq = ();
-            if ($cap{$svr} =~ m/\s/xsm) { @capreq = split ' ', $cap{$svr} }
-            else { push @capreq, $cap{$svr} }
+    if(uc($ex[3]) eq "LS") {
+        # Get our CAP REQ list.
+        my @capreq = ();
+        if ($cap{$svr} =~ m/\s/xsm) { @capreq = split ' ', $cap{$svr} }
+        else { push @capreq, $cap{$svr} }
 
-            # Iterate through what we received from the server.
-            $ex[4] =~ s/^://xsm;
-            foreach my $scap (@ex[4..$#ex]) {
-                # Check if we support this.
-                foreach my $icap (@capreq) {
-                    if ($icap eq $scap) {
-                        $capout .= " $scap";
-                    }
+        # Iterate through what we received from the server.
+        $ex[4] =~ s/^://xsm;
+        foreach my $scap (@ex[4..$#ex]) {
+            # Check if we support this.
+            foreach my $icap (@capreq) {
+                if ($icap eq $scap) {
+                    $capout .= " $scap";
                 }
             }
-            
-            # Send CAP REQ/CAP END based on what both we and the server support.
-            if (!$capout) { Auto::socksnd($svr, 'CAP END') }
-            else {
-                $capout = substr $capout, 1;
-                Auto::socksnd($svr, "CAP REQ :$capout");
-            }
         }
-        when ('ACK') {
+        
+        # Send CAP REQ/CAP END based on what both we and the server support.
+        if (!$capout) { Auto::socksnd($svr, 'CAP END') }
+        else {
+            $capout = substr $capout, 1;
+            Auto::socksnd($svr, "CAP REQ :$capout");
+        }
+    }
+    elsif(uc($ex[3]) eq "ACK") {
             # Iterate through the ACK arguments.
             $ex[4] =~ s/^://xsm;
             my $sasl = 0;
@@ -331,12 +330,11 @@ sub cap {
                 API::Std::event_run('on_capack', ($svr, $_));
             }
             Auto::socksnd($svr, 'CAP END') unless $sasl;
-        }
-        when ('NAK') {
+    }
+    elsif(uc($ex[3]) eq "NAK") {
             # This should never happen, but just in case...
             API::Log::awarn(2, "$svr: CAP failed: Server refused '$capout'");
             Auto::socksnd($svr, 'CAP END');
-        }
     }
 
     return 1;
